@@ -124,7 +124,7 @@ async function generatePost(prompt) {
       },
       {
         headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
+          Authorization: `Bearer ${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}`,
           "Content-Type": "application/json",
         },
       }
