@@ -10,20 +10,25 @@ const client = new Client({
   }
 });
 
-client.on('qr', function() {
-  console.log('QR ready, waiting 5 seconds before pairing...');
-  setTimeout(async function() {
-    try {
-      var number = process.env.WA_NUMBER;
-      console.log('Requesting pairing code for: ' + number);
-      var code = await client.requestPairingCode(number);
-      console.log('===================');
-      console.log('PAIRING CODE: ' + code);
-      console.log('===================');
-    } catch (e) {
-      console.error('Pairing failed: ' + e.message);
-    }
-  }, 5000);
+var pairingDone = false;
+
+client.on('qr', function(qr) {
+  if (pairingDone) return;
+  pairingDone = true;
+  
+  var number = process.env.WA_NUMBER;
+  console.log('Requesting pairing code for: ' + number);
+  
+  client.requestPairingCode(number).then(function(code) {
+    console.log('');
+    console.log('================================');
+    console.log('  PAIRING CODE: ' + code);
+    console.log('================================');
+    console.log('WhatsApp > Linked Devices > Link with phone number');
+  }).catch(function(err) {
+    console.error('Failed: ' + err.message);
+    pairingDone = false;
+  });
 });
 
 client.on('ready', function() {
@@ -31,7 +36,18 @@ client.on('ready', function() {
   startChannelAutoPoster(client);
 });
 
-client.on('auth_failure', function() { process.exit(1); });
-client.on('disconnected', function() { process.exit(1); });
+client.on('authenticated', function() {
+  console.log('Authenticated!');
+});
+
+client.on('auth_failure', function() {
+  console.log('Auth Failed!');
+  process.exit(1);
+});
+
+client.on('disconnected', function() {
+  console.log('Disconnected!');
+  process.exit(1);
+});
 
 client.initialize();
