@@ -3,6 +3,7 @@ const { startChannelAutoPoster } = require('./ai-channel-autoposter');
 
 const client = new Client({
   authStrategy: new LocalAuth(),
+  pairingCodeEnabled: true, // ← Yeh missing tha!
   puppeteer: {
     executablePath: '/usr/bin/google-chrome-stable',
     args: [
@@ -15,11 +16,15 @@ const client = new Client({
   }
 });
 
-// Pairing code mode
 client.on('qr', async () => {
-  const number = process.env.WA_NUMBER; // Railway variable se
-  const code = await client.requestPairingCode(number);
-  console.log('🔑 Pairing Code:', code);
+  try {
+    const number = process.env.WA_NUMBER;
+    const code = await client.requestPairingCode(number);
+    console.log('🔑 PAIRING CODE:', code);
+    console.log('👆 Yeh code WhatsApp Linked Devices mein daalo!');
+  } catch (e) {
+    console.error('❌ Pairing error:', e.message);
+  }
 });
 
 client.on('ready', () => {
@@ -35,6 +40,9 @@ client.on('auth_failure', () => {
 client.on('disconnected', () => {
   console.log('❌ Disconnected!');
   process.exit(1);
+});
+
+client.initialize();  process.exit(1);
 });
 
 client.initialize();
