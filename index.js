@@ -10,32 +10,17 @@ const client = new Client({
   }
 });
 
-client.on('qr', async () => {
-  try {
-    const code = await client.requestPairingCode(process.env.WA_NUMBER);
-    console.log('PAIRING CODE: ' + code);
-  } catch (e) {
-    console.error('Error: ' + e.message);
-  }
+client.on('qr', async function() {
+  var code = await client.requestPairingCode(process.env.WA_NUMBER);
+  console.log('PAIRING CODE: ' + code);
 });
 
-client.on('ready', () => {
+client.on('ready', function() {
   console.log('Bot Ready!');
   startChannelAutoPoster(client);
 });
 
-client.on('auth_failure', () => { process.exit(1); });
-client.on('disconnected', () => { process.exit(1); });
-
-client.initialize();  process.exit(1);
-});
-
-client.on('disconnected', () => {
-  console.log('❌ Disconnected!');
-  process.exit(1);
-});
-
-client.initialize();  process.exit(1);
-});
+client.on('auth_failure', function() { process.exit(1); });
+client.on('disconnected', function() { process.exit(1); });
 
 client.initialize();
