@@ -3,38 +3,31 @@ const { startChannelAutoPoster } = require('./ai-channel-autoposter');
 
 const client = new Client({
   authStrategy: new LocalAuth(),
-  pairingCodeEnabled: true, // ← Yeh missing tha!
+  pairingCodeEnabled: true,
   puppeteer: {
     executablePath: '/usr/bin/google-chrome-stable',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process'
-    ]
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process']
   }
 });
 
 client.on('qr', async () => {
   try {
-    const number = process.env.WA_NUMBER;
-    const code = await client.requestPairingCode(number);
-    console.log('🔑 PAIRING CODE:', code);
-    console.log('👆 Yeh code WhatsApp Linked Devices mein daalo!');
+    const code = await client.requestPairingCode(process.env.WA_NUMBER);
+    console.log('PAIRING CODE: ' + code);
   } catch (e) {
-    console.error('❌ Pairing error:', e.message);
+    console.error('Error: ' + e.message);
   }
 });
 
 client.on('ready', () => {
-  console.log('✅ WhatsApp Bot Ready!');
+  console.log('Bot Ready!');
   startChannelAutoPoster(client);
 });
 
-client.on('auth_failure', () => {
-  console.log('❌ Auth Failed!');
-  process.exit(1);
+client.on('auth_failure', () => { process.exit(1); });
+client.on('disconnected', () => { process.exit(1); });
+
+client.initialize();  process.exit(1);
 });
 
 client.on('disconnected', () => {
