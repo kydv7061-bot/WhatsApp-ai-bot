@@ -4,106 +4,118 @@ const axios = require('axios');
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
-const POSTS = {
-  morning: {
-    time: '0 8 * * *',
-    prompt: `Write a WhatsApp channel post about latest AI news from last 24 hours.
+var cronJobs = {};
+
+const PROMPTS = {
+  morning: `Write a WhatsApp channel post about latest AI news from last 24 hours.
 Format exactly:
 🌅 *AI MORNING BRIEF*
 ━━━━━━━━━━━━━━━━━━━━
 📌 *[Headline 1]*
-[2-3 lines]
+[2-3 lines in Hinglish]
 📌 *[Headline 2]*
-[2-3 lines]
+[2-3 lines in Hinglish]
 📌 *[Headline 3]*
-[2-3 lines]
+[2-3 lines in Hinglish]
 ━━━━━━━━━━━━━━━━━━━━
-🤖 _Powered by AI Daily_
-Write in Hinglish.`
-  },
-  afternoon: {
-    time: '0 13 * * *',
-    prompt: `Write a WhatsApp post about ONE useful AI tool.
+🤖 _Powered by AI Daily_`,
+
+  afternoon: `Write a WhatsApp post about ONE useful AI tool today.
 Format exactly:
 ☀️ *AI TOOL SPOTLIGHT*
 ━━━━━━━━━━━━━━━━━━━━
 🔧 *Tool: [NAME]*
 ❓ *Kya karta hai?*
-[2-3 lines]
+[2-3 lines in Hinglish]
 🚀 *Kyu try karo?*
-[2-3 lines]
+[2-3 lines in Hinglish]
 💰 *Price:* [Free/Paid/Freemium]
 🔗 *Link:* [website]
 ━━━━━━━━━━━━━━━━━━━━
-🤖 _Powered by AI Daily_
-Write in Hinglish.`
-  },
-  evening: {
-    time: '0 18 * * *',
-    prompt: `Write a WhatsApp deep-dive on biggest AI story this week.
+🤖 _Powered by AI Daily_`,
+
+  evening: `Write a WhatsApp deep-dive on biggest AI story this week.
 Format exactly:
 🌆 *AI BIG STORY*
 ━━━━━━━━━━━━━━━━━━━━
 🔥 *[Story Title]*
 📖 *Kya hua?*
-[3-4 lines]
+[3-4 lines in Hinglish]
 💡 *Iska matlab kya hai?*
-[2-3 lines]
+[2-3 lines in Hinglish]
 🌏 *India ke liye?*
-[1-2 lines]
+[1-2 lines in Hinglish]
 ━━━━━━━━━━━━━━━━━━━━
-🤖 _Powered by AI Daily_
-Write in Hinglish.`
-  },
-  night: {
-    time: '0 22 * * *',
-    prompt: `Write a fun WhatsApp post with a mind-blowing AI fact.
+🤖 _Powered by AI Daily_`,
+
+  night: `Write a fun WhatsApp post with a mind-blowing AI fact.
 Format exactly:
 🌙 *AI FACT OF THE DAY*
 ━━━━━━━━━━━━━━━━━━━━
 🤯 *[Title]*
-[3-4 fun lines]
+[3-4 fun lines in Hinglish]
 💬 *Tumhara kya opinion hai? Reply karo!*
 ━━━━━━━━━━━━━━━━━━━━
 🔁 _Share karo AI lovers ke saath!_
-🤖 _Powered by AI Daily_
-Write in Hinglish.`
-  }
+🤖 _Powered by AI Daily_`
 };
 
-async function generatePost(prompt) {
+async function generatePost(type) {
   try {
-    const res = await axios.post(
+    var res = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
         model: 'llama-3.3-70b-versatile',
         max_tokens: 600,
         messages: [
           { role: 'system', content: 'You are an AI news curator for WhatsApp. Write in Hinglish. Use *bold* and _italic_ formatting.' },
-          { role: 'user', content: prompt }
+          { role: 'user', content: PROMPTS[type] || PROMPTS.morning }
         ]
       },
       { headers: { 'Authorization': 'Bearer ' + GROQ_API_KEY, 'Content-Type': 'application/json' } }
     );
     return res.data.choices[0].message.content.trim();
-  } catch (e) {
+  } catch(e) {
     console.error('Groq error:', e.message);
     return null;
   }
 }
 
-function startChannelAutoPoster(client) {
-  console.log('Auto-Poster started! 8AM | 1PM | 6PM | 10PM IST');
-  for (const [name, config] of Object.entries(POSTS)) {
-    cron.schedule(config.time, async () => {
+function timeToСron(timeStr) {
+  var parts = timeStr.split(':');
+  return parts[1] + ' ' + parts[0] + ' * * *';
+}
+
+function startChannelAutoPoster(client, times) {
+  times = times || { morning:'08:00', afternoon:'13:00', evening:'18:00', night:'22:00' };
+  console.log('Auto-Poster started!');
+  scheduleAll(client, times);
+}
+
+function scheduleAll(client, times) {
+  // Stop existing jobs
+  Object.values(cronJobs).forEach(function(job) { if(job) job.stop(); });
+  cronJobs = {};
+
+  Object.entries(times).forEach(function(entry) {
+    var name = entry[0];
+    var time = entry[1];
+    var cronExpr = timeToСron(time);
+    cronJobs[name] = cron.schedule(cronExpr, async function() {
       console.log('Generating ' + name + ' post...');
-      const content = await generatePost(config.prompt);
+      var content = await generatePost(name);
       if (content) {
         await client.sendMessage(CHANNEL_ID, content);
         console.log('Posted: ' + name);
       }
     }, { timezone: 'Asia/Kolkata' });
-  }
+    console.log(name + ' scheduled at ' + time + ' IST');
+  });
 }
 
-module.exports = { startChannelAutoPoster };
+function reschedulePost(times, client) {
+  console.log('Rescheduling posts...');
+  scheduleAll(client, times);
+}
+
+module.exports = { startChannelAutoPoster, generatePost, reschedulePost };
