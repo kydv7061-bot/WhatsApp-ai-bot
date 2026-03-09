@@ -19,51 +19,30 @@ app.get('/', function(req, res) {
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      background:#030810;
-      min-height:100vh;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      font-family:'Share Tech Mono',monospace;
-      color:#00d4ff;
-      background-image:radial-gradient(ellipse at 50% 0%, rgba(0,100,180,0.15) 0%, transparent 70%);
-      padding: 20px;
+      background:#030810; min-height:100vh; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; font-family:'Share Tech Mono',monospace;
+      color:#00d4ff; background-image:radial-gradient(ellipse at 50% 0%, rgba(0,100,180,0.15) 0%, transparent 70%);
+      padding:20px;
     }
     .brand { font-size:11px; letter-spacing:8px; color:#0088bb; margin-bottom:6px; }
     .title {
       font-size:36px; font-weight:900; letter-spacing:8px;
       background:linear-gradient(90deg,#00d4ff,#0077ff,#00d4ff);
       -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-      filter:drop-shadow(0 0 20px rgba(0,180,255,0.5));
-      margin-bottom:4px;
+      filter:drop-shadow(0 0 20px rgba(0,180,255,0.5)); margin-bottom:4px;
     }
     .subtitle { font-size:9px; letter-spacing:4px; color:#004466; margin-bottom:20px; }
     .divider { width:200px; height:1px; background:linear-gradient(90deg,transparent,#00d4ff,transparent); margin-bottom:20px; }
     .card {
-      background:rgba(0,15,30,0.9);
-      border:1px solid rgba(0,180,255,0.25);
-      border-radius:8px;
-      padding:24px 20px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:14px;
-      box-shadow:0 0 40px rgba(0,120,200,0.1);
-      width:100%;
-      max-width:340px;
+      background:rgba(0,15,30,0.9); border:1px solid rgba(0,180,255,0.25); border-radius:8px;
+      padding:24px 20px; display:flex; flex-direction:column; align-items:center; gap:14px;
+      box-shadow:0 0 40px rgba(0,120,200,0.1); width:100%; max-width:340px;
     }
     .badge { font-size:10px; letter-spacing:3px; padding:4px 16px; border-radius:2px; border:1px solid; }
     .badge-wait { border-color:rgba(0,180,255,0.3); color:#0077aa; }
     .badge-scan { border-color:rgba(0,255,150,0.4); color:#00ff88; }
-    .badge-ok   { border-color:rgba(0,255,150,0.6); color:#00ff66; }
-    .qr-wrap {
-      background:white;
-      padding:14px;
-      border-radius:6px;
-      border:3px solid rgba(0,212,255,0.4);
-      box-shadow:0 0 20px rgba(0,180,255,0.2);
-    }
+    .badge-ok { border-color:rgba(0,255,150,0.6); color:#00ff66; }
+    .qr-wrap { background:white; padding:14px; border-radius:6px; border:3px solid rgba(0,212,255,0.4); box-shadow:0 0 20px rgba(0,180,255,0.2); }
     .qr-wrap img { display:block; width:240px; height:240px; }
     .hint { font-size:12px; color:#aaccdd; text-align:center; line-height:2; letter-spacing:1px; }
     .hint b { color:#00d4ff; }
@@ -110,25 +89,15 @@ app.listen(process.env.PORT || 3000, function() {
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process'
-    ]
+    executablePath: '/usr/bin/chromium',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process']
   }
 });
 
 client.on('qr', async function(qr) {
   console.log('QR Ready! Open Railway URL!');
   status = 'qr';
-  qrData = await qrcode.toDataURL(qr, {
-    errorCorrectionLevel: 'H',
-    margin: 2,
-    width: 400,
-    color: { dark: '#000000', light: '#ffffff' }
-  });
+  qrData = await qrcode.toDataURL(qr, { errorCorrectionLevel: 'H', margin: 2, width: 400 });
 });
 
 client.on('ready', function() {
