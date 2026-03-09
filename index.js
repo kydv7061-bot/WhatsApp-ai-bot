@@ -53,10 +53,7 @@ app.get('/', function(req, res) {
       width:100%;
       max-width:340px;
     }
-    .badge {
-      font-size:10px; letter-spacing:3px;
-      padding:4px 16px; border-radius:2px; border:1px solid;
-    }
+    .badge { font-size:10px; letter-spacing:3px; padding:4px 16px; border-radius:2px; border:1px solid; }
     .badge-wait { border-color:rgba(0,180,255,0.3); color:#0077aa; }
     .badge-scan { border-color:rgba(0,255,150,0.4); color:#00ff88; }
     .badge-ok   { border-color:rgba(0,255,150,0.6); color:#00ff66; }
@@ -71,21 +68,10 @@ app.get('/', function(req, res) {
     .hint { font-size:12px; color:#aaccdd; text-align:center; line-height:2; letter-spacing:1px; }
     .hint b { color:#00d4ff; }
     .note { font-size:9px; color:#003344; letter-spacing:2px; }
-    .pulse {
-      width:10px; height:10px; border-radius:50%;
-      background:#00ff66; box-shadow:0 0 10px #00ff66;
-      animation:pulse 1.5s infinite;
-    }
-    @keyframes pulse {
-      0%,100%{opacity:1;transform:scale(1);}
-      50%{opacity:0.5;transform:scale(1.4);}
-    }
+    .pulse { width:10px; height:10px; border-radius:50%; background:#00ff66; box-shadow:0 0 10px #00ff66; animation:pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.5;transform:scale(1.4);} }
     .row { display:flex; align-items:center; gap:10px; }
-    .spin {
-      width:32px; height:32px; border:2px solid #003344;
-      border-top-color:#00d4ff; border-radius:50%;
-      animation:spin 1s linear infinite;
-    }
+    .spin { width:32px; height:32px; border:2px solid #003344; border-top-color:#00d4ff; border-radius:50%; animation:spin 1s linear infinite; }
     @keyframes spin { to{transform:rotate(360deg);} }
   </style>
 </head>
@@ -94,29 +80,16 @@ app.get('/', function(req, res) {
   <div class="title">J.A.R.V.I.S</div>
   <div class="subtitle">WHATSAPP AI CHANNEL BOT</div>
   <div class="divider"></div>
-
   <div class="card">
     ${status === 'connected' ? `
       <div class="badge badge-ok">● SYSTEM ONLINE</div>
       <div style="font-size:52px">✅</div>
-      <div class="hint">
-        Bot connected hai!<br/>
-        <b>8AM · 1PM · 6PM · 10PM IST</b><br/>
-        Daily 4 posts auto ho rahe hain
-      </div>
-      <div class="row">
-        <div class="pulse"></div>
-        <div class="note">AI CHANNEL AUTOPOSTER ACTIVE</div>
-      </div>
+      <div class="hint">Bot connected hai!<br/><b>8AM · 1PM · 6PM · 10PM IST</b><br/>Daily 4 posts auto ho rahe hain</div>
+      <div class="row"><div class="pulse"></div><div class="note">AI CHANNEL AUTOPOSTER ACTIVE</div></div>
     ` : qrData ? `
       <div class="badge badge-scan">● QR READY — SCAN NOW</div>
-      <div class="qr-wrap">
-        <img src="${qrData}" />
-      </div>
-      <div class="hint">
-        WhatsApp → <b>Linked Devices</b><br/>
-        → <b>Link a Device</b> → Camera se scan karo
-      </div>
+      <div class="qr-wrap"><img src="${qrData}" /></div>
+      <div class="hint">WhatsApp → <b>Linked Devices</b><br/>→ <b>Link a Device</b> → Scan karo</div>
       <div class="note">PAGE AUTO REFRESHES EVERY 20S</div>
     ` : `
       <div class="badge badge-wait">● INITIALIZING</div>
@@ -125,10 +98,7 @@ app.get('/', function(req, res) {
       <div class="note">PAGE AUTO REFRESHES EVERY 20S</div>
     `}
   </div>
-
-  <div style="margin-top:16px;font-size:9px;color:#002233;letter-spacing:3px;">
-    POWERED BY GROQ AI + WHATSAPP
-  </div>
+  <div style="margin-top:16px;font-size:9px;color:#002233;letter-spacing:3px;">POWERED BY GROQ AI + WHATSAPP</div>
 </body>
 </html>`);
 });
@@ -140,7 +110,6 @@ app.listen(process.env.PORT || 3000, function() {
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    executablePath: '/usr/bin/google-chrome-stable',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -152,7 +121,7 @@ const client = new Client({
 });
 
 client.on('qr', async function(qr) {
-  console.log('QR Ready! Open your Railway domain URL to scan!');
+  console.log('QR Ready! Open Railway URL!');
   status = 'qr';
   qrData = await qrcode.toDataURL(qr, {
     errorCorrectionLevel: 'H',
@@ -163,20 +132,13 @@ client.on('qr', async function(qr) {
 });
 
 client.on('ready', function() {
-  console.log('Bot Ready! Auto-poster starting...');
+  console.log('Bot Ready!');
   status = 'connected';
   qrData = '';
   startChannelAutoPoster(client);
 });
 
-client.on('auth_failure', function() {
-  console.log('Auth failed!');
-  process.exit(1);
-});
-
-client.on('disconnected', function() {
-  console.log('Disconnected! Restarting...');
-  process.exit(1);
-});
+client.on('auth_failure', function() { process.exit(1); });
+client.on('disconnected', function() { process.exit(1); });
 
 client.initialize();
