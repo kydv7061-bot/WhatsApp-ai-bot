@@ -15,14 +15,12 @@ var status = 'starting';
 var currentClient = null;
 var scheduledTimes = { morning: '08:00', afternoon: '13:00', evening: '18:00', night: '22:00' };
 
-// MongoDB session schema
 const SessionSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   data: { type: String, required: true }
 });
 const Session = mongoose.model('Session', SessionSchema);
 
-// Save session to MongoDB
 async function saveSession() {
   try {
     var sessionDir = './.wwebjs_auth';
@@ -39,7 +37,6 @@ async function saveSession() {
   }
 }
 
-// Restore session from MongoDB
 async function restoreSession() {
   try {
     var doc = await Session.findOne({ name: 'main' });
@@ -82,7 +79,6 @@ function writeDirRecursive(files, base) {
   });
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────
 app.get('/', function(req, res) {
   var isConnected = status === 'connected';
   res.send(`<!DOCTYPE html>
@@ -217,8 +213,9 @@ app.post('/reschedule', function(req, res) {
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
-app.listen(process.env.PORT || 3000, function() {
-  console.log('JARVIS started!');
+var PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', function() {
+  console.log('JARVIS started on port ' + PORT);
 });
 
 async function start() {
@@ -247,7 +244,7 @@ async function start() {
     qrData = '';
     console.log('Bot Ready!');
     await saveSession();
-    setInterval(saveSession, 5 * 60 * 1000); // Save every 5 mins
+    setInterval(saveSession, 5 * 60 * 1000);
     startChannelAutoPoster(client, scheduledTimes);
   });
 
