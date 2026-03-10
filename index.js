@@ -31,22 +31,21 @@ async function saveSession() {
       { name: 'main', data: data },
       { upsert: true }
     );
-    console.log('Session saved to MongoDB!');
+    console.log('Session saved!');
   } catch(e) {
-    console.error('Save session error:', e.message);
+    console.error('Save error:', e.message);
   }
 }
 
 async function restoreSession() {
   try {
     var doc = await Session.findOne({ name: 'main' });
-    if (!doc) { console.log('No saved session found'); return false; }
-    var files = JSON.parse(doc.data);
-    writeDirRecursive(files);
-    console.log('Session restored from MongoDB!');
+    if (!doc) { console.log('No saved session'); return false; }
+    writeDirRecursive(JSON.parse(doc.data));
+    console.log('Session restored!');
     return true;
   } catch(e) {
-    console.error('Restore session error:', e.message);
+    console.error('Restore error:', e.message);
     return false;
   }
 }
@@ -79,6 +78,20 @@ function writeDirRecursive(files, base) {
   });
 }
 
+async function sendToChannel(content) {
+  try {
+    await currentClient.sendMessage(process.env.CHANNEL_ID, content);
+    return true;
+  } catch(e) {
+    console.error('Send error:', e.message);
+    if (e.message && (e.message.includes('detached') || e.message.includes('Target closed'))) {
+      console.log('Detached frame — restarting bot...');
+      setTimeout(function() { process.exit(1); }, 500);
+    }
+    return false;
+  }
+}
+
 app.get('/', function(req, res) {
   var isConnected = status === 'connected';
   res.send(`<!DOCTYPE html>
@@ -87,7 +100,7 @@ app.get('/', function(req, res) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JARVIS Control Panel</title>
-  ${!isConnected ? '<meta http-equiv="refresh" content="10">' : ''}
+  ${!isConnected ? '<meta http-equiv="refresh" content="8">' : ''}
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -136,7 +149,6 @@ ${status === 'qr' && qrData ? `
 </div>
 ` : !isConnected ? `
 <div class="card" style="text-align:center">
-  <div class="card-title">● ${status === 'starting' ? 'CONNECTING...' : 'LOADING SESSION...'}</div>
   <div class="spin"></div>
   <div class="hint">Please wait... ☕</div>
 </div>
@@ -174,7 +186,7 @@ function sendPost(type) {
   showToast('⏳ Generating...', '#ffaa00');
   fetch('/send?type=' + type)
     .then(r => r.json())
-    .then(d => { if(d.ok) showToast('✅ Posted to channel!'); else showToast('❌ ' + d.error, '#ff4444'); })
+    .then(d => { if(d.ok) showToast('✅ Posted!'); else showToast('❌ ' + d.error, '#ff4444'); })
     .catch(() => showToast('❌ Failed!', '#ff4444'));
 }
 function saveSchedule() {
@@ -196,13 +208,12 @@ function saveSchedule() {
 app.get('/send', async function(req, res) {
   try {
     var content = await generatePost(req.query.type || 'morning');
-    if (content && currentClient) {
-      await currentClient.sendMessage(process.env.CHANNEL_ID, content);
-      res.json({ ok: true });
-    } else {
-      res.json({ ok: false, error: 'Failed' });
-    }
-  } catch(e) { res.json({ ok: false, error: e.message }); }
+    if (!content) return res.json({ ok: false, error: 'Groq failed' });
+    var ok = await sendToChannel(content);
+    res.json({ ok: ok, error: ok ? null : 'Send failed' });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
 });
 
 app.post('/reschedule', function(req, res) {
@@ -249,25 +260,26 @@ async function start() {
   });
 
   client.on('auth_failure', function() {
-  setTimeout(function() { process.exit(1); }, 3000);
-});
-
-client.on('disconnected', function(reason) {
-  console.log('Disconnected:', reason);
-  setTimeout(function() { process.exit(1); }, 3000);
-});
-
-process.on('unhandledRejection', function(reason) {
-  if (reason && reason.message && reason.message.includes('detached')) {
-    console.log('Restarting due to detached frame...');
+    console.log('Auth failed!');
     setTimeout(function() { process.exit(1); }, 1000);
-  }
-});
+  });
 
-client.initialize();
+  client.on('disconnected', function(reason) {
+    console.log('Disconnected:', reason);
+    setTimeout(function() { process.exit(1); }, 1000);
+  });
+
+  process.on('unhandledRejection', function(reason) {
+    if (reason && reason.message && (reason.message.includes('detached') || reason.message.includes('Target closed'))) {
+      console.log('Puppeteer crash, restarting...');
+      setTimeout(function() { process.exit(1); }, 500);
+    }
+  });
+
+  client.initialize();
 }
 
 start().catch(function(e) {
-  console.error('Error:', e.message);
+  console.error('Startup error:', e.message);
   process.exit(1);
 });
