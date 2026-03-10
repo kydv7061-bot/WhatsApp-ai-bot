@@ -11,87 +11,90 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 var qrData = '';
-var status = 'starting'; 
+var status = 'starting';
 var currentClient = null;
 var scheduledTimes = { morning: '08:00', afternoon: '13:00', evening: '18:00', night: '22:00' };
 
+// ─── MONGODB SESSION ──────────────────────────────────────
 const SessionSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   data: { type: String, required: true }
 });
 const Session = mongoose.model('Session', SessionSchema);
 
+function readDirRecursive(dir) {
+  var result = {};
+  if (!fs.existsSync(dir)) return result;
+  try {
+    fs.readdirSync(dir).forEach(function(file) {
+      var fullPath = path.join(dir, file);
+      try {
+        if (fs.statSync(fullPath).isDirectory()) {
+          result[file] = readDirRecursive(fullPath);
+        } else {
+          result[file] = fs.readFileSync(fullPath, 'base64');
+        }
+      } catch(e) {}
+    });
+  } catch(e) {}
+  return result;
+}
+
+function writeDirRecursive(files, base) {
+  base = base || '/tmp/.wwebjs_auth';
+  try {
+    if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+    Object.entries(files).forEach(function(entry) {
+      var name = entry[0], val = entry[1];
+      var fullPath = path.join(base, name);
+      if (typeof val === 'object' && val !== null) {
+        writeDirRecursive(val, fullPath);
+      } else if (typeof val === 'string') {
+        fs.writeFileSync(fullPath, Buffer.from(val, 'base64'));
+      }
+    });
+  } catch(e) {
+    console.log('Write error:', e.message);
+  }
+}
+
 async function saveSession() {
   try {
-    var sessionDir = './.wwebjs_auth';
-    if (!fs.existsSync(sessionDir)) return;
+    var sessionDir = '/tmp/.wwebjs_auth';
+    if (!fs.existsSync(sessionDir)) {
+      console.log('Session dir not found, skipping save');
+      return;
+    }
     var data = JSON.stringify(readDirRecursive(sessionDir));
+    if (data === '{}') {
+      console.log('Empty session, skipping save');
+      return;
+    }
     await Session.findOneAndUpdate(
       { name: 'main' },
       { name: 'main', data: data },
-      { upsert: true }
+      { upsert: true, new: true }
     );
-    console.log('Session saved!');
+    console.log('✅ Session saved to MongoDB!');
   } catch(e) {
-    console.error('Save error:', e.message);
+    console.log('Save error:', e.message);
   }
 }
 
 async function restoreSession() {
   try {
     var doc = await Session.findOne({ name: 'main' });
-    if (!doc) { console.log('No saved session'); return false; }
-    writeDirRecursive(JSON.parse(doc.data));
-    console.log('Session restored!');
+    if (!doc) { console.log('No saved session found'); return false; }
+    writeDirRecursive(JSON.parse(doc.data), '/tmp/.wwebjs_auth');
+    console.log('✅ Session restored from MongoDB!');
     return true;
   } catch(e) {
-    console.error('Restore error:', e.message);
+    console.log('Restore error:', e.message);
     return false;
   }
 }
 
-function readDirRecursive(dir) {
-  var result = {};
-  if (!fs.existsSync(dir)) return result;
-  fs.readdirSync(dir).forEach(function(file) {
-    var fullPath = path.join(dir, file);
-    if (fs.statSync(fullPath).isDirectory()) {
-      result[file] = readDirRecursive(fullPath);
-    } else {
-      result[file] = fs.readFileSync(fullPath, 'base64');
-    }
-  });
-  return result;
-}
-
-function writeDirRecursive(files, base) {
-  base = base || './.wwebjs_auth';
-  if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
-  Object.entries(files).forEach(function(entry) {
-    var name = entry[0], val = entry[1];
-    var fullPath = path.join(base, name);
-    if (typeof val === 'object') {
-      writeDirRecursive(val, fullPath);
-    } else {
-      fs.writeFileSync(fullPath, Buffer.from(val, 'base64'));
-    }
-  });
-}
-
-async function sendToChannel(content) {
-  try {
-    await currentClient.sendMessage(process.env.CHANNEL_ID, content);
-    return true;
-  } catch(e) {
-    console.error('Send error:', e.message);
-    if (e.message && (e.message.includes('detached') || e.message.includes('Target closed'))) {
-      console.log('Detached frame — restarting bot...');
-      setTimeout(function() { process.exit(1); }, 500);
-    }
-    return false;
-  }
-}
-
+// ─── DASHBOARD ────────────────────────────────────────────
 app.get('/', function(req, res) {
   var isConnected = status === 'connected';
   res.send(`<!DOCTYPE html>
@@ -122,8 +125,8 @@ app.get('/', function(req, res) {
     .time-input { background:rgba(0,0,0,0.4); border:1px solid rgba(0,180,255,0.3); color:#00d4ff; padding:6px 10px; border-radius:3px; font-family:'Share Tech Mono',monospace; font-size:13px; width:90px; text-align:center; }
     .save-btn { background:rgba(0,100,40,0.4); border:1px solid rgba(0,255,100,0.3); color:#00ff66; padding:10px; border-radius:4px; font-family:'Share Tech Mono',monospace; font-size:11px; cursor:pointer; width:100%; margin-top:8px; }
     .toast { display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(0,20,10,0.95); border:1px solid #00ff66; color:#00ff66; padding:10px 24px; border-radius:4px; font-size:12px; z-index:999; white-space:nowrap; }
-    .qr-wrap { background:white; padding:12px; border-radius:6px; margin:8px auto; display:block; width:fit-content; }
-    .qr-wrap img { width:220px; height:220px; display:block; }
+    .qr-wrap { background:white; padding:14px; border-radius:6px; margin:8px auto; display:block; width:fit-content; }
+    .qr-wrap img { width:240px; height:240px; display:block; }
     .hint { font-size:11px; color:#aaccdd; text-align:center; line-height:1.8; margin-top:8px; }
     .spin { width:32px; height:32px; border:2px solid #003344; border-top-color:#00d4ff; border-radius:50%; animation:spin 1s linear infinite; margin:12px auto; }
     @keyframes spin { to{transform:rotate(360deg);} }
@@ -180,14 +183,14 @@ function showToast(msg, color) {
   t.style.display = 'block';
   t.style.borderColor = color || '#00ff66';
   t.style.color = color || '#00ff66';
-  setTimeout(function(){ t.style.display='none'; }, 3000);
+  setTimeout(function(){ t.style.display='none'; }, 3500);
 }
 function sendPost(type) {
-  showToast('⏳ Generating...', '#ffaa00');
+  showToast('⏳ Generating post...', '#ffaa00');
   fetch('/send?type=' + type)
     .then(r => r.json())
-    .then(d => { if(d.ok) showToast('✅ Posted!'); else showToast('❌ ' + d.error, '#ff4444'); })
-    .catch(() => showToast('❌ Failed!', '#ff4444'));
+    .then(d => { if(d.ok) showToast('✅ Posted to channel!'); else showToast('❌ ' + d.error, '#ff4444'); })
+    .catch(() => showToast('❌ Network error!', '#ff4444'));
 }
 function saveSchedule() {
   var data = {
@@ -207,11 +210,13 @@ function saveSchedule() {
 
 app.get('/send', async function(req, res) {
   try {
+    if (status !== 'connected') return res.json({ ok: false, error: 'Bot not connected!' });
     var content = await generatePost(req.query.type || 'morning');
-    if (!content) return res.json({ ok: false, error: 'Groq failed' });
-    var ok = await sendToChannel(content);
-    res.json({ ok: ok, error: ok ? null : 'Send failed' });
+    if (!content) return res.json({ ok: false, error: 'Groq API failed' });
+    await currentClient.sendMessage(process.env.CHANNEL_ID, content);
+    res.json({ ok: true });
   } catch(e) {
+    console.log('Send error:', e.message);
     res.json({ ok: false, error: e.message });
   }
 });
@@ -229,13 +234,10 @@ app.listen(PORT, '0.0.0.0', function() {
   console.log('JARVIS started on port ' + PORT);
 });
 
-async function start() {
-  await mongoose.connect(process.env.MONGODB_URI);
-  console.log('MongoDB connected!');
-  await restoreSession();
-
+// ─── WHATSAPP CLIENT ──────────────────────────────────────
+async function initClient() {
   const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({ dataPath: '/tmp/.wwebjs_auth' }),
     puppeteer: {
       executablePath: '/usr/bin/chromium',
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process']
@@ -253,14 +255,15 @@ async function start() {
   client.on('ready', async function() {
     status = 'connected';
     qrData = '';
-    console.log('Bot Ready!');
+    console.log('✅ Bot Ready!');
     await saveSession();
-    setInterval(saveSession, 5 * 60 * 1000);
+    setInterval(saveSession, 3 * 60 * 1000); // Save every 3 mins
     startChannelAutoPoster(client, scheduledTimes);
   });
 
-  client.on('auth_failure', function() {
-    console.log('Auth failed!');
+  client.on('auth_failure', async function() {
+    console.log('Auth failed! Clearing session...');
+    await Session.deleteOne({ name: 'main' });
     setTimeout(function() { process.exit(1); }, 1000);
   });
 
@@ -269,15 +272,19 @@ async function start() {
     setTimeout(function() { process.exit(1); }, 1000);
   });
 
-  process.on('unhandledRejection', function(reason) {
-    if (reason && reason.message && (reason.message.includes('detached') || reason.message.includes('Target closed'))) {
-      console.log('Puppeteer crash, restarting...');
-      setTimeout(function() { process.exit(1); }, 500);
-    }
-  });
-
   client.initialize();
 }
+
+async function start() {
+  await mongoose.connect(process.env.MONGODB_URI);
+  console.log('✅ MongoDB connected!');
+  await restoreSession();
+  await initClient();
+}
+
+process.on('unhandledRejection', function(reason) {
+  console.log('Unhandled error:', reason && reason.message);
+});
 
 start().catch(function(e) {
   console.error('Startup error:', e.message);
