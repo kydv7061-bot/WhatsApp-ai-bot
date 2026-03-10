@@ -81,9 +81,30 @@ async function generatePost(type) {
   }
 }
 
-function timeToСron(timeStr) {
+function timeToCron(timeStr) {
   var parts = timeStr.split(':');
   return parts[1] + ' ' + parts[0] + ' * * *';
+}
+
+function scheduleAll(client, times) {
+  Object.values(cronJobs).forEach(function(job) { if(job) job.stop(); });
+  cronJobs = {};
+  Object.entries(times).forEach(function(entry) {
+    var name = entry[0], time = entry[1];
+    cronJobs[name] = cron.schedule(timeToCron(time), async function() {
+      console.log('Posting ' + name + '...');
+      var content = await generatePost(name);
+      if (content) {
+        try {
+          await client.sendMessage(CHANNEL_ID, content);
+          console.log('✅ Posted: ' + name);
+        } catch(e) {
+          console.log('Post error:', e.message);
+        }
+      }
+    }, { timezone: 'Asia/Kolkata' });
+    console.log(name + ' scheduled at ' + time + ' IST');
+  });
 }
 
 function startChannelAutoPoster(client, times) {
@@ -92,29 +113,7 @@ function startChannelAutoPoster(client, times) {
   scheduleAll(client, times);
 }
 
-function scheduleAll(client, times) {
-  // Stop existing jobs
-  Object.values(cronJobs).forEach(function(job) { if(job) job.stop(); });
-  cronJobs = {};
-
-  Object.entries(times).forEach(function(entry) {
-    var name = entry[0];
-    var time = entry[1];
-    var cronExpr = timeToСron(time);
-    cronJobs[name] = cron.schedule(cronExpr, async function() {
-      console.log('Generating ' + name + ' post...');
-      var content = await generatePost(name);
-      if (content) {
-        await client.sendMessage(CHANNEL_ID, content);
-        console.log('Posted: ' + name);
-      }
-    }, { timezone: 'Asia/Kolkata' });
-    console.log(name + ' scheduled at ' + time + ' IST');
-  });
-}
-
 function reschedulePost(times, client) {
-  console.log('Rescheduling posts...');
   scheduleAll(client, times);
 }
 
