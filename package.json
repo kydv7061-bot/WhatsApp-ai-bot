@@ -6,7 +6,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "whatsapp-web.js": "^1.23.0",
+    "whatsapp-web.js": "^1.23.0", 
     "mongoose": "^7.0.0",
     "node-cron": "^3.0.3",
     "axios": "^1.6.0",
