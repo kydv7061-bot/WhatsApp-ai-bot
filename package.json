@@ -6,7 +6,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js",
+    "whatsapp-web.js": "https://github.com/pedroslopez/whatsapp-web.js/tarball/main",
     "mongoose": "^7.0.0",
     "node-cron": "^3.0.3",
     "axios": "^1.6.0",
