@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 var qrData = '';
-var status = 'starting';
+var status = 'starting'; 
 var currentClient = null;
 var scheduledTimes = { morning: '08:00', afternoon: '13:00', evening: '18:00', night: '22:00' };
 
