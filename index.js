@@ -248,9 +248,23 @@ async function start() {
     startChannelAutoPoster(client, scheduledTimes);
   });
 
-  client.on('auth_failure', function() { process.exit(1); });
-  client.on('disconnected', function() { process.exit(1); });
-  client.initialize();
+  client.on('auth_failure', function() {
+  setTimeout(function() { process.exit(1); }, 3000);
+});
+
+client.on('disconnected', function(reason) {
+  console.log('Disconnected:', reason);
+  setTimeout(function() { process.exit(1); }, 3000);
+});
+
+process.on('unhandledRejection', function(reason) {
+  if (reason && reason.message && reason.message.includes('detached')) {
+    console.log('Restarting due to detached frame...');
+    setTimeout(function() { process.exit(1); }, 1000);
+  }
+});
+
+client.initialize();
 }
 
 start().catch(function(e) {
